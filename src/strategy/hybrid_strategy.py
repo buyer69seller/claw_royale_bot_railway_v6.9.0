@@ -37,6 +37,7 @@ class HybridStrategyV7:
     
     def set_pack_modifiers(self, main_pack: Dict, sub_pack: Dict):
         self._pack_modifiers = {}
+        # Tidak ada efek khusus dari pack di strategi ini, hanya placeholder
     
     def decide(self, state: GameState, ai_decision: Optional[Dict] = None) -> Dict:
         self.turn += 1
@@ -72,6 +73,16 @@ class HybridStrategyV7:
         return StrategyMode.HYBRID_V7
     
     def _ai_mode(self, state: GameState, ai_decision: Optional[Dict]) -> Dict:
+        # ----- PERBAIKAN: Handle jika berada di dalam gua -----
+        if state.in_cave:
+            exit_obj = state.get_cave_exit()
+            if exit_obj:
+                logger.info("🧠 Hybrid v7 [AI]: Exiting cave via interact")
+                return {"kind": "interact", "obj": exit_obj, "score": SCORE_CAVE_EXIT, "priority": 1}
+            logger.warning("⛔ Hybrid v7 [AI]: In cave but no exit – waiting")
+            return {"kind": "wait", "score": 0, "priority": 5}
+        # --------------------------------------------------------
+        
         if ai_decision:
             return ai_decision
         return self._competitive_mode(state)
@@ -92,11 +103,13 @@ class HybridStrategyV7:
         if not state.is_alive:
             return {"kind": "dead", "score": -1e9, "priority": 5}
         
+        # ----- Sudah ada logika exit cave di sini -----
         if state.in_cave:
             cave_exit = state.get_cave_exit()
             if cave_exit:
                 return {"kind": "interact", "obj": cave_exit, "score": SCORE_CAVE_EXIT, "priority": 1}
             return {"kind": "wait", "score": 0, "priority": 5}
+        # -------------------------------------------------
         
         candidates = []
         hp_ratio = state.hp_ratio()
@@ -172,6 +185,7 @@ class HybridStrategyV7:
                 if score > 0:
                     candidates.append({"kind": "explore", "obj": obj, "score": score, "priority": 6})
         
+        # ----- PERBAIKAN: Hanya tambahkan move jika tidak di dalam gua (sudah di-cek di awal) -----
         for conn in state.get_connections():
             if isinstance(conn, str):
                 conn = {"regionId": conn, "insideDeathZone": False, "safetyScore": 0.5}
