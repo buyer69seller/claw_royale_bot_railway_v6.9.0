@@ -227,6 +227,13 @@ class GameState:
         self.alert_gauge = alert_data.get("alertGauge", 0)
         self.alert_active = alert_data.get("alertActive", False)
     
+    def update_ruin_state(self, ruin_data: Dict):
+        ruin_id = ruin_data.get("ruinId")
+        if ruin_id:
+            self.ruin_cache[ruin_id] = ruin_data
+            if ruin_data.get("isEmpty", False):
+                self.explored_ruins.add(ruin_id)
+    
     def _calculate_distance(self, obj1: Dict, obj2: Dict) -> float:
         try:
             if obj1 is None or obj2 is None:
@@ -263,3 +270,34 @@ class GameState:
             "collected": len(self.collected_items),
             "valid_items": len(self.get_valid_items())
         }
+
+    # ============================================
+    # METHOD BARU – DITAMBAHKAN UNTUK AI ENGINE
+    # ============================================
+    def get_healing_items(self) -> List[Dict]:
+        """
+        Mengembalikan daftar item yang memiliki efek penyembuhan (heal > 0).
+        Digunakan oleh HybridAIEngine untuk prioritas penyembuhan.
+        """
+        items = self.get_items()
+        healing = []
+        for item in items:
+            if isinstance(item, dict):
+                heal = float(item.get("heal", item.get("healAmount", 0)))
+                if heal > 0:
+                    healing.append(item)
+        return healing
+
+    def get_loot_items(self) -> List[Dict]:
+        """
+        Mengembalikan daftar item dengan nilai tinggi (value > 10) 
+        yang dianggap sebagai loot berharga.
+        """
+        items = self.get_items()
+        loot = []
+        for item in items:
+            if isinstance(item, dict):
+                value = float(item.get("value", item.get("rarityValue", 0)))
+                if value > 10:  # threshold dapat disesuaikan
+                    loot.append(item)
+        return loot
