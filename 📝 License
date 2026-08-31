@@ -1,0 +1,37 @@
+
+---
+
+## 📄 **FILE 8: `config/.env.example`**
+
+```env
+# ============================================================================
+# CLAW ROYALE BOT v6.1 - ENVIRONMENT VARIABLES
+# ============================================================================
+
+# ===== REQUIRED =====
+CLAW_API_KEY=mr_live_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+# ===== STRATEGY MODE =====
+# super_hybrid - 4 Mode Strategy (Recommended)
+# hybrid_v7   - 3 Mode Strategy
+# hybrid      - Hybrid AI + RL
+# scan_clear  - Scan & Clear
+STRATEGY_MODE=super_hybrid
+
+# ===== GAME =====
+ENTRY_TYPE=free
+PREFERRED_MODE=offchain
+ACTION_INTERVAL_SECONDS=0.25
+
+# ===== LOGGING =====
+LOG_LEVEL=INFO
+
+# ===== RL =====
+RL_ENABLED=true
+RL_LEARNING_RATE=0.1
+RL_EPSILON_START=1.0
+RL_EPSILON_END=0.05
+
+# ===== MEMORY =====
+MAX_KNOWLEDGE_HISTORY=500
+MAX_RL_MEMORY=1000

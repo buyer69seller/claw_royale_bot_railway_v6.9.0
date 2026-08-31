@@ -1,0 +1,71 @@
+claw-royale-bot/
+├── src/
+│   ├── __init__.py
+│   ├── main.py                          ✅ Updated
+│   │
+│   ├── core/
+│   │   ├── __init__.py                  ✅ Export STRATEGY_MODE
+│   │   ├── config.py                    ✅ STRATEGY_MODE = super_hybrid
+│   │   ├── constants.py                 ✅ Pack/Relic data
+│   │   └── exceptions.py                ✅ Custom exceptions
+│   │
+│   ├── client/
+│   │   ├── __init__.py
+│   │   ├── rest_client.py               ✅ REST API
+│   │   └── ws_client.py                 ✅ WebSocket
+│   │
+│   ├── game/
+│   │   ├── __init__.py
+│   │   ├── state.py                     ✅ Item tracking, region tracking
+│   │   └── actions.py                   ✅ Action builder
+│   │
+│   ├── strategy/
+│   │   ├── __init__.py                  ✅ Export all strategies
+│   │   ├── engine.py                    ✅ Heuristic (fallback)
+│   │   ├── evaluators.py                ✅ Score evaluators
+│   │   ├── scan_clear.py                ✅ Scan & Clear
+│   │   ├── hybrid_strategy.py           ✅ Hybrid v7 (3 Mode)
+│   │   └── super_hybrid.py              ✅ SUPER HYBRID (4 Mode) ⭐ BARU
+│   │
+│   ├── ai/
+│   │   ├── __init__.py
+│   │   ├── perception.py                ✅ Optimasi scanning
+│   │   ├── analyzer.py                  ✅ Game analysis
+│   │   ├── decision.py                  ✅ AI decision
+│   │   ├── risk.py                      ✅ Risk assessment
+│   │   ├── knowledge.py                 ✅ Knowledge base
+│   │   ├── hybrid_engine.py             ✅ Hybrid AI + RL
+│   │   └── rl_agent.py                  ✅ Q-Learning
+│   │
+│   ├── lifecycle/
+│   │   ├── __init__.py
+│   │   ├── driver.py                    ✅ Integrasi semua strategy
+│   │   ├── router.py                    ✅ State router
+│   │   └── version_manager.py           ✅ Version cache
+│   │
+│   ├── services/
+│   │   ├── __init__.py
+│   │   ├── auth_service.py              ✅ Authentication
+│   │   ├── reward_service.py            ✅ Rewards
+│   │   ├── loadout_service.py           ✅ Loadout optimization
+│   │   ├── inventory_service.py         ✅ Inventory management
+│   │   └── marketplace_service.py       ✅ Marketplace
+│   │
+│   └── utils/
+│       ├── __init__.py
+│       ├── logger.py                    ✅ Logging
+│       └── health.py                    ✅ Health server + Dashboard
+│
+├── config/
+│   └── .env.example                     ✅ Updated dengan super_hybrid
+├── tests/
+│   ├── __init__.py
+│   ├── test_strategy.py
+│   └── test_ai.py
+├── railway.json                         ✅
+├── Dockerfile                           ✅
+├── requirements.txt                     ✅
+├── .dockerignore                        ✅
+├── .gitignore                           ✅
+├── LICENSE                              ✅
+└── README.md                            ✅
