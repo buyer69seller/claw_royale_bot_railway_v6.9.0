@@ -24,9 +24,20 @@ class AuthService:
         
         readiness = self._account.get("readiness", {})
         if not readiness.get("agentToken", False):
-            logger.info("🔑 Agent token missing, registering...")
-            await self.rest.ensure_agent_token()
-            self._account = await self.rest.get_account()
+            logger.info("🔑 Agent token missing, attempting to register...")
+            try:
+                # Coba register token
+                success = await self.rest.ensure_agent_token()
+                if success:
+                    # Refresh account untuk mendapatkan token terbaru
+                    self._account = await self.rest.get_account()
+                    logger.info("✅ Agent token registered successfully")
+                else:
+                    logger.warning("⚠️ Agent token registration returned failure, continuing with free mode")
+            except Exception as e:
+                # ❗ TIDAK DIBLOKIR – free mode tetap bisa berjalan
+                logger.warning(f"⚠️ Agent token registration failed: {e}")
+                logger.info("ℹ️ Continuing with free mode (agent token not strictly required for free rooms)")
         
         return self._account
     
