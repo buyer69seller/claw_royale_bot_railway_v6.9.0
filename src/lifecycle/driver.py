@@ -4,6 +4,7 @@
 import asyncio
 import logging
 import json
+import time
 from typing import Optional, Dict, Any, Set
 
 from websockets.exceptions import ConnectionClosed
@@ -97,25 +98,50 @@ class Driver:
         """Loop utama driver"""
         logger.info("🚀 Driver run() started!")
         self.delay = MIN_RETRY_DELAY
-        self.start_time = __import__('time').time()
+        self.start_time = time.time()
         logger.info(f"⏰ Start time: {self.start_time}")
 
         loop_count = 0
+        version_checked = False  # Tambahan untuk mencegah refresh berulang
 
         while True:
             loop_count += 1
             logger.info(f"🔄 Driver loop iteration #{loop_count}")
 
             try:
-                # Update version
-                logger.info("📥 Checking version...")
-                await self.version_mgr.ensure_current(self.rest._session)
-                logger.info(f"✅ Version: {self.version_mgr.version}")
+                # Update version hanya sekali jika sudah sama
+                if not version_checked:
+                    logger.info("📥 Checking version...")
+                    await self.version_mgr.ensure_current(self.rest._session)
+                    logger.info(f"✅ Version: {self.version_mgr.version}")
+                    version_checked = True
+                else:
+                    # Jika sudah dicek, hanya ambil version tanpa refresh
+                    if not self.version_mgr.version:
+                        await self.version_mgr.ensure_current(self.rest._session)
+                    # Tidak log setiap iterasi untuk mengurangi spam
 
                 # Determine state
                 logger.info("🔍 Determining game state...")
                 state_info = await self.router.resolve_state()
                 logger.info(f"📊 State: {state_info['state']} -> {state_info['action']}")
+
+                # Jika state idle dan sudah lama, coba force free mode
+                if state_info["state"] == "IDLE" and loop_count > 3:
+                    # Cek readiness free dari router
+                    account = await self.rest.get_account()
+                    readiness = account.get("readiness", {})
+                    free_ready = readiness.get("free", {}).get("ready", False)
+                    if free_ready:
+                        logger.info("🔄 Free room ready, forcing start...")
+                        state_info = {
+                            "state": "READY_FREE",
+                            "entry_type": "free",
+                            "action": "start_free",
+                            "game": None
+                        }
+                    else:
+                        logger.debug("Free room not ready yet")
 
                 # Execute based on state
                 if state_info["action"] in ["start_free", "start_paid"]:
@@ -209,11 +235,12 @@ class Driver:
                 self.delay = MIN_RETRY_DELAY
 
             except AgentTokenRequiredError:
-                logger.warning("🔑 Agent token required! Trying to register...")
-                if self.auth_service:
-                    await self.auth_service.rest.ensure_agent_token()
-                await asyncio.sleep(2)
+                # ❗ PERUBAHAN: Tidak di-retry terus, langsung lanjut ke free mode
+                logger.warning("🔑 Agent token required but registration failed. Continuing with free mode...")
+                # Reset delay dan lanjutkan ke iterasi berikutnya (state router akan cek lagi)
                 self.delay = MIN_RETRY_DELAY
+                await asyncio.sleep(2)
+                continue
 
             except Exception as e:
                 logger.exception(f"💥 Driver error: {e}")
@@ -368,7 +395,11 @@ class Driver:
                     logger.error(f"❌ Server error: {code} - {message}")
 
                     if code == "AGENT_TOKEN_REQUIRED":
-                        raise AgentTokenRequiredError("Agent token required!")
+                        # ❗ PERUBAHAN: tidak raise, tapi log dan coba free mode
+                        logger.warning("🔑 Agent token required, but we'll try to continue with free mode")
+                        # Tidak raise, tapi lanjutkan
+                        continue
+
                     if code == "BLOCKED":
                         logger.warning("⛔ Account blocked - check API key")
                         await asyncio.sleep(5)
@@ -512,20 +543,20 @@ class Driver:
         logger.info("🗺️ Region tracking active - avoiding loops")
 
         # Timeout tracking
-        last_action_time = __import__('time').time()
-        last_view_time = __import__('time').time()
+        last_action_time = time.time()
+        last_view_time = time.time()
         view_timeout = 90
         stuck_counter = 0
         last_hp = 0
         last_turn = 0
         
         # Heartbeat
-        last_ping_time = __import__('time').time()
+        last_ping_time = time.time()
         ping_interval = 30
 
         while True:
             try:
-                current_time = __import__('time').time()
+                current_time = time.time()
                 
                 # Heartbeat
                 if current_time - last_ping_time > ping_interval:
@@ -808,7 +839,7 @@ class Driver:
             return
 
         # Rate limit
-        current_time = __import__('time').time()
+        current_time = time.time()
         min_action_interval = 0.5
         
         if self._last_action_time > 0:
@@ -1037,7 +1068,7 @@ class Driver:
         logger.info("=" * 60)
 
     def get_performance(self) -> Dict[str, Any]:
-        uptime = int(__import__('time').time() - (self.start_time or 0))
+        uptime = int(time.time() - (self.start_time or 0))
 
         result = {
             "uptime": uptime,
