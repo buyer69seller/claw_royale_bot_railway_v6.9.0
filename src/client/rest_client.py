@@ -1,5 +1,5 @@
 # src/client/rest_client.py
-"""REST API client"""
+"""REST API client untuk Claw Royale"""
 
 import aiohttp
 import json
@@ -12,6 +12,8 @@ from ..core.exceptions import AuthenticationError, VersionMismatchError, ClawRoy
 logger = logging.getLogger(__name__)
 
 class RestClient:
+    """Client untuk HTTP API"""
+    
     def __init__(self, api_key: str):
         self.api_key = api_key
         self._session: Optional[aiohttp.ClientSession] = None
@@ -30,13 +32,59 @@ class RestClient:
         return self._version or "1.15.0"
     
     async def get_version(self) -> str:
+        """Dapatkan versi API terbaru"""
         async with self._get("/version") as resp:
             data = await resp.json()
             self._version = data.get("version") or data.get("data", {}).get("version")
             return self._version
     
+    # ===== ACCOUNT =====
+    
     async def get_account(self) -> Dict[str, Any]:
+        """Dapatkan data akun"""
         return await self._request("GET", "/accounts/me")
+    
+    async def get_dashboard_games(self, limit: int = 10, cursor: Optional[str] = None) -> Dict:
+        return await self._request("GET", "/accounts/me/dashboard/games", params={"limit": limit, "cursor": cursor})
+    
+    # ===== AGENT TOKEN =====
+    
+    async def ensure_agent_token(self) -> bool:
+        """
+        Pastikan agent token ada, register jika belum
+        """
+        try:
+            account = await self.get_account()
+            readiness = account.get("readiness", {})
+            
+            if readiness.get("agentToken"):
+                logger.info("✅ Agent token already exists")
+                return True
+            
+            logger.info("🔑 Registering agent token...")
+            result = await self._request("POST", "/api/agent-token/register")
+            if result:
+                logger.info("✅ Agent token registered successfully!")
+                return True
+            else:
+                logger.warning("⚠️ Failed to register agent token")
+                return False
+                
+        except Exception as e:
+            logger.error(f"❌ Agent token error: {e}")
+            return False
+    
+    async def get_agent_token_status(self) -> Dict[str, Any]:
+        """Cek status agent token"""
+        try:
+            account = await self.get_account()
+            readiness = account.get("readiness", {})
+            has_token = readiness.get("agentToken", False)
+            return {"has_token": has_token, "account": account}
+        except Exception as e:
+            return {"has_token": False}
+    
+    # ===== LOADOUT =====
     
     async def get_loadout(self) -> Dict[str, Any]:
         return await self._request("GET", "/accounts/me/loadout")
@@ -50,40 +98,79 @@ class RestClient:
     async def equip_relic(self, relic_id: str) -> Dict:
         return await self._request("POST", "/accounts/me/loadout/relics", json={"relicId": relic_id})
     
+    async def unequip_relic(self, relic_id: str) -> Dict:
+        return await self._request("DELETE", f"/accounts/me/loadout/relics/{relic_id}")
+    
     async def get_inventory(self) -> Dict[str, Any]:
         return await self._request("GET", "/accounts/me/inventory")
+    
+    # ===== REWARD =====
     
     async def redeem_code(self, code: str) -> Dict:
         return await self._request("POST", "/redeem", json={"code": code})
     
+    async def get_dashboard_overview(self) -> Dict[str, Any]:
+        return await self._request("GET", "/accounts/me/dashboard/overview")
+    
+    async def claim_quest(self, quest_key: str, tier: int) -> Dict:
+        return await self._request("POST", f"/api/quests/{quest_key}/claim/{tier}")
+    
+    async def claim_daily(self) -> Dict:
+        return await self._request("POST", "/api/daily-quests/claim")
+    
+    # ===== MARKETPLACE =====
+    
+    async def get_marketplace_listings(self, filters: Dict = None) -> Dict[str, Any]:
+        params = filters or {}
+        return await self._request("GET", "/api/marketplace/listings", params=params)
+    
+    async def buy_marketplace_listing(self, listing_id: str) -> Dict:
+        return await self._request("POST", f"/api/marketplace/listings/{listing_id}/buy")
+    
+    # ===== INTERNAL =====
+    
     async def _request(self, method: str, path: str, **kwargs) -> Dict:
         if not self._session:
-            raise RuntimeError("Session not initialized")
+            raise RuntimeError("Session not initialized.")
         
         url = f"{BASE_API}{path}"
         headers = {
             "Authorization": f"mr-auth {self.api_key}",
             "X-Version": self._version or "1.15.0"
         }
+        
         if "headers" in kwargs:
             headers.update(kwargs.pop("headers"))
         
         try:
             async with self._session.request(method, url, headers=headers, **kwargs) as resp:
                 if resp.status == 426:
-                    raise VersionMismatchError(await resp.text())
+                    error_data = await resp.text()
+                    raise VersionMismatchError(f"Version mismatch: {error_data}")
                 if resp.status == 401:
                     raise AuthenticationError("Invalid API key")
                 if resp.status == 404:
                     return {}
+                
                 resp.raise_for_status()
-                data = await resp.json()
+                text = await resp.text()
+                try:
+                    data = json.loads(text)
+                except json.JSONDecodeError:
+                    logger.warning(f"Non-JSON response: {text[:200]}")
+                    return {}
+                
                 if not data.get("success", True):
                     error = data.get("error", {})
                     raise ClawRoyaleError(f"API Error: {error.get('code')} - {error.get('message')}")
+                
                 return data.get("data", {})
+                
         except aiohttp.ClientError as e:
             logger.warning(f"Request failed: {e}")
+            return {}
+        except json.JSONDecodeError as e:
+            logger.warning(f"JSON decode error: {e}")
             return {}
     
     def _get(self, path: str, **kwargs):
