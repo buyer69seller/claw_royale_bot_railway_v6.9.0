@@ -34,15 +34,22 @@ class StateRouter:
                 if entry_type and game.get("isAlive") and game.get("gameStatus") != "finished":
                     self.live_games[entry_type] = game
             
+            # ===== PRIORITASKAN FREE MODE =====
+            # 1. Jika ada game free yang masih hidup, lanjutkan
             if "free" in self.live_games:
                 return GameState.IN_GAME_FREE
-            if "paid" in self.live_games:
-                return GameState.IN_GAME_PAID
+            
+            # 2. Jika free readiness tersedia, mulai free game
             if readiness.get("free", {}).get("ready", False):
                 return GameState.READY_FREE
+            
+            # 3. Jika tidak ada free, cek paid
+            if "paid" in self.live_games:
+                return GameState.IN_GAME_PAID
             if readiness.get("paid", {}).get("ready", False):
                 return GameState.READY_PAID
             
+            # 4. Tidak ada yang tersedia
             return GameState.IDLE
             
         except Exception as e:
@@ -58,7 +65,7 @@ class StateRouter:
         elif state in [GameState.READY_PAID, GameState.IN_GAME_PAID]:
             entry_type = "paid"
         else:
-            entry_type = "free"
+            entry_type = "free"  # default fallback
         
         return {
             "state": state,
