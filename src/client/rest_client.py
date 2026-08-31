@@ -47,17 +47,35 @@ class RestClient:
     async def equip_sub_pack(self, pack_id: str) -> Dict:
         return await self._request("POST", "/accounts/me/loadout/sub", json={"packId": pack_id})
     
-    # ===== TAMBAHAN METHOD YANG DIPERLUKAN =====
     async def equip_relic(self, relic_id: str) -> Dict:
         """Equip a relic by its ID."""
         return await self._request("POST", "/accounts/me/loadout/relics", json={"relicId": relic_id})
-    # ============================================
     
     async def get_inventory(self) -> Dict[str, Any]:
         return await self._request("GET", "/accounts/me/inventory")
     
     async def redeem_code(self, code: str) -> Dict:
         return await self._request("POST", "/redeem", json={"code": code})
+    
+    # ===== AGENT TOKEN – TIDAK RAISE =====
+    async def ensure_agent_token(self) -> bool:
+        """Register agent token. Return True if success, False otherwise (no exception)."""
+        try:
+            result = await self._request("POST", "/agents/token")
+            if result:
+                logger.info("✅ Agent token registered successfully")
+                return True
+            else:
+                logger.warning("⚠️ Agent token registration returned empty result")
+                return False
+        except ClawRoyaleError as e:
+            # API error (misal sudah terdaftar, atau tidak diizinkan)
+            logger.warning(f"⚠️ Agent token registration API error: {e}")
+            return False
+        except Exception as e:
+            logger.warning(f"⚠️ Agent token registration failed: {e}")
+            return False
+    # =====================================
     
     # ----- OPSIONAL: Marketplace Methods -----
     async def get_marketplace_listings(self, filters: Optional[Dict] = None) -> Dict:
